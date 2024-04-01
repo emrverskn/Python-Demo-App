@@ -47,8 +47,8 @@ pipeline{
             }
         }
 
-        stage('Destroy the infrastructure'){
-            steps{
+        post('Destroy the infrastructure'){
+            always{
                 timeout(time:5, unit:'DAYS'){
                     input message:'Approve terminate'
                 }   
@@ -59,4 +59,23 @@ pipeline{
             }
         }
     }
+
+// post {
+//     always {
+//         emailext (
+//             subject: "Pipeline Status: ${BUILD_NUMBER}",
+//             body: '''<html>
+//                     <body>
+//                     <p>Build Status: ${BUILD_STATUS}</p>
+//                     <p>Build Number: ${BUILD_NUMBER}</p>
+//                     <p>Check the <a href="${BUILD_URL}">console output</a>.</p>
+//                     </body>
+//                     </html>''',
+//             to: 'yasinhasturk@hotmail.com',
+//             from: 'jenkins@noreplay',
+//             replyTo: 'yasinhasturk@hotmail.com',
+//             mimeType: 'text/html'
+//             )
+//         }
+//     }
 }
