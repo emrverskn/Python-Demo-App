@@ -58,8 +58,8 @@ pipeline {
         }
 
     post {
-            script {
-                sh 'docker rmi -f "$IMAGE_NAME"'
-            }
+        always {
+            sh 'docker rmi -f "$IMAGE_NAME"'
         }
     }
+}
