@@ -47,8 +47,8 @@ pipeline{
             }
         }
 
-post('Destroy the infrastructure'){
-    always{
+post {
+    always {
         timeout(time:5, unit:'DAYS'){
             input message:'Approve terminate'
         }   
