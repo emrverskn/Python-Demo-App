@@ -55,10 +55,10 @@ post('Destroy the infrastructure'){
         script {
             sh 'docker rm -f "$CONTAINER_NAME"' 
             sh 'docker rmi -f "$IMAGE_NAME"'
+                }
             }
         }
     }
-}
 
 // post {
 //     always {
