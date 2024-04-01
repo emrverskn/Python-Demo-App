@@ -1,14 +1,13 @@
 pipeline{
     agent any
     environment {
-        APP_NAME = "py-demo-app"
-        RELEASE = "1.0.0"
-        DOCKER_USER = "emrverskn"
-        IMAGE_NAME = "${DOCKER_USER}" + "/" + "${APP_NAME}"
-        IMAGE_TAG = "v${RELEASE}-b${BUILD_NUMBER}"
+        APP_NAME="py-demo-app"
+        RELEASE="1.0.0"
+        DOCKER_USER="emrverskn"
+        IMAGE_TAG="v${RELEASE}-b${BUILD_NUMBER}"
+        IMAGE_NAME="${DOCKER_USER}/${APP_NAME}:${IMAGE_TAG}"
         JENKINS_API_TOKEN = credentials("JENKINS_API_TOKEN")
-        // DOCKERHUB_USER = "emrverskn"
-
+        CONTAINER_NAME="${APP_NAME}"
     }
     stages{
         stage("Test Application"){
@@ -18,39 +17,7 @@ pipeline{
                 }
             }
         }
-        
 
-        stage("Code Coverage with JaCoCo") {
-            steps {
-                sh "mvn jacoco:prepare-agent test jacoco:report"
-                archiveArtifacts 'target/site/jacoco/index.html'
-            }
-        }
-
-        // stage("Build & Push Docker Image") {
-        //     steps {
-        //         script {
-        //             // Retrieve DockerHub token from Jenkins credentials
-        //             withCredentials([string(credentialsId:'my-dockerhub-token-2', variable: 'DOCKERHUB_TOKEN')]) {
-                        
-        //                 def dockerRegistryUrl = 'https://hub.docker.com/'
-
-        //                 // Build the Docker image
-        //                 docker.withRegistry(dockerRegistryUrl, DOCKERHUB_TOKEN) {
-        //                     docker_image = docker.build "${IMAGE_NAME}"
-        //                 }
-
-        //                 // Push the Docker image to DockerHub
-        //                 docker.withRegistry(dockerRegistryUrl, DOCKERHUB_TOKEN) {
-        //                     docker_image.push("${IMAGE_TAG}")
-        //                     docker_image.push('latest')
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-
-       
         stage('Build App Docker Image') {
             steps {
                 echo 'Building App Image'                
@@ -59,75 +26,56 @@ pipeline{
             }
        }
 
+
+
         stage('Push Image to Dockerhub Repo') {
             steps {
                 echo 'Pushing App Image to DockerHub Repo'
-                withCredentials([string(credentialsId: 'my-dockerhub-token', variable: 'DOCKERHUB_TOKEN')]) {
-                sh 'docker login -u $DOCKERHUB_USER -p $DOCKERHUB_TOKEN'
+                withCredentials([string(credentialsId: 'DockerHub-Token', variable: 'DOCKERHUB_TOKEN')]) {
+                sh 'docker login -u $DOCKER_USER -p $DOCKERHUB_TOKEN'
                 sh 'docker push "$IMAGE_NAME"'
-                
             }
           }
         }
 
-        stage("Trivy Scan") {
+        stage ('Deploy the App') {
             steps {
                 script {
-		   sh ('docker run -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image ${IMAGE_NAME} --no-progress --scanners vuln  --exit-code 0 --severity HIGH,CRITICAL --format table')
-                }
-            }
-
-        }
-
-        stage ('Cleanup Artifacts') {
-            steps {
-                script {
-                   sh "docker rmi ${IMAGE_NAME}"
+                    sh 'docker rm -f "$CONTAINER_NAME" || echo "there is no existing container with this name"'
+                    sh 'docker run --name "$CONTAINER_NAME" -d -p 5000:5000 "$IMAGE_NAME"'
                 }
             }
         }
 
-
-        // stage("Trigger CD Pipeline") {
-        //     steps {
-        //         script {
-        //             sh "curl -v -k --user yasin_devops:${JENKINS_API_TOKEN} -X POST -H 'cache-control: no-cache' -H 'content-type: application/x-www-form-urlencoded' --data 'IMAGE_TAG=${IMAGE_TAG}' 'https://jenkins.dev.dman.cloud/job/gitops-complete-pipeline/buildWithParameters?token=gitops-token'"
-        //         }
-        //     }
-
-        // }
-
-        stage("Trigger CD Pipeline") {
-            steps {
+        stage('Destroy the infrastructure'){
+            steps{
+                timeout(time:5, unit:'DAYS'){
+                    input message:'Approve terminate'
+                }   
                 script {
-                def localJenkinsUrl = 'http://localhost:8080'
-                def localJenkinsJobPath = 'job/gitops-complete-pipeline'
-                def localJenkinsToken = 'gitops-token'
-            
-            sh "curl -v -k --user yasin_devops:${JENKINS_API_TOKEN} -X POST -H 'cache-control: no-cache' -H 'content-type: application/x-www-form-urlencoded' --data 'IMAGE_TAG=${IMAGE_TAG}' '${localJenkinsUrl}/${localJenkinsJobPath}/buildWithParameters?token=${localJenkinsToken}'"
+                   sh 'docker rm -f "$CONTAINER_NAME"' 
+                   sh 'docker rmi -f "$IMAGE_NAME"'
+                }
+            }
         }
     }
-}
 
-
-    }
-
-post {
-    always {
-        emailext (
-            subject: "Pipeline Status: ${BUILD_NUMBER}",
-            body: '''<html>
-                    <body>
-                    <p>Build Status: ${BUILD_STATUS}</p>
-                    <p>Build Number: ${BUILD_NUMBER}</p>
-                    <p>Check the <a href="${BUILD_URL}">console output</a>.</p>
-                    </body>
-                    </html>''',
-            to: 'yasinhasturk@hotmail.com',
-            from: 'jenkins@noreplay',
-            replyTo: 'yasinhasturk@hotmail.com',
-            mimeType: 'text/html'
-        )
-        }
-    }
+// post {
+//     always {
+//         emailext (
+//             subject: "Pipeline Status: ${BUILD_NUMBER}",
+//             body: '''<html>
+//                     <body>
+//                     <p>Build Status: ${BUILD_STATUS}</p>
+//                     <p>Build Number: ${BUILD_NUMBER}</p>
+//                     <p>Check the <a href="${BUILD_URL}">console output</a>.</p>
+//                     </body>
+//                     </html>''',
+//             to: 'yasinhasturk@hotmail.com',
+//             from: 'jenkins@noreplay',
+//             replyTo: 'yasinhasturk@hotmail.com',
+//             mimeType: 'text/html'
+//             )
+//         }
+//     }
 }
