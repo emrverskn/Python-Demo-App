@@ -47,18 +47,18 @@ pipeline{
             }
         }
 
-    post('Destroy the infrastructure'){
-        always{
-            timeout(time:5, unit:'DAYS'){
-                input message:'Approve terminate'
-            }   
-            script {
-                sh 'docker rm -f "$CONTAINER_NAME"' 
-                sh 'docker rmi -f "$IMAGE_NAME"'
-                }
+post('Destroy the infrastructure'){
+    always{
+        timeout(time:5, unit:'DAYS'){
+            input message:'Approve terminate'
+        }   
+        script {
+            sh 'docker rm -f "$CONTAINER_NAME"' 
+            sh 'docker rmi -f "$IMAGE_NAME"'
             }
         }
     }
+}
 
 // post {
 //     always {
